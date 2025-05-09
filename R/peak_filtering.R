@@ -14,6 +14,7 @@ peak_filtering <- function(anno.raw.file, q) {
 
   # PAS
   anno = utils::read.csv(anno.raw.file, row.names = 1, stringsAsFactors = FALSE)
+  anno$PAS_full = as.character(anno$PAS_full)
 
   anno$PAS = sapply(anno$PAS_full, function(t) {
     PAS.vec = as.numeric(strsplit(t, ',')[[1]]); return (any(PAS.vec >= q[1] & PAS.vec <= q[2]))
