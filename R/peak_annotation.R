@@ -205,6 +205,7 @@ base_seq <- function(genome,
   coord <- as.character(coord)
   coord_split <- strsplit(coord, split = ":")[[1]]
   chrom  <- coord_split[1]
+  chrom <- as.character(trimws(chrom))
   strand <- coord_split[3]
   coords <- strsplit(coord_split[2],"-")[[1]]
   start  <- as.numeric(coords[1])
