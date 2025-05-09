@@ -110,6 +110,17 @@ peak_annotation <- function(peak.sites.file,
 
 ################################################################################
 
+get_genome_seq <- function(genome, chrom, start, end) {
+  if ("DNAStringSet" %in% class(genome)) {
+    seqnames <- names(genome)
+    idx <- which(seqnames == chrom)
+    if (length(idx) == 0) stop(paste("Chromosome", chrom, "not found in genome"))
+    subseq(genome[[idx]], start = start, end = end)
+  } else {
+    BSgenome::getSeq(genome, chrom, start, end)
+  }
+}
+
 annotate_gr <- function(gr,
                         genome,
                         invert_strand = FALSE,
@@ -121,8 +132,13 @@ annotate_gr <- function(gr,
 
   if (invert_strand) gr <- BiocGenerics::invertStrand(gr)
   df <- as.data.frame(gr)
-  if (is.null(genome) | !isS4(genome)) warning("Genome is Null. Motif annotation cannot be proceeded.")
-  if (isS4(genome)) {
+  if (is.null(genome)) {
+    warning("Genome is Null. Motif annotation cannot be proceeded.")
+  } else if (!("DNAStringSet" %in% class(genome) || isS4(genome))) {
+    stop("Genome must be a BSgenome or DNAStringSet object.")
+  }
+
+  if (!is.null(genome) && (isS4(genome) || inherits(genome, "DNAStringSet"))) {
 
     # Set up progress bar
     pbar <- utils::txtProgressBar(min = 0, max = length(gr), style = 3)
@@ -215,7 +231,9 @@ base_seq <- function(genome,
     stop
   }
 
-  sequ <- BSgenome::getSeq(genome, chrom, seq_start_position, seq_end_position)
+  # sequ <- BSgenome::getSeq(genome, chrom, seq_start_position, seq_end_position)
+  sequ <- get_genome_seq(genome, chrom, seq_start_position, seq_end_position)
+
   sequ_upstream <- {}
   if (strand == '-')  sequ_upstream <- sequ
 
@@ -228,7 +246,8 @@ base_seq <- function(genome,
     stop
   }
 
-  sequ_tmp <- BSgenome::getSeq(genome, chrom, seq_start_position, seq_end_position)
+  # sequ_tmp <- BSgenome::getSeq(genome, chrom, seq_start_position, seq_end_position)
+  sequ_tmp <- get_genome_seq(genome, chrom, seq_start_position, seq_end_position)
 
   if (strand == '-') {
     sequ <- Biostrings::reverseComplement(sequ_tmp)
