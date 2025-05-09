@@ -24,7 +24,7 @@ peak_counting <- function(bamfile,
                           ) {
 
   lock <- tempfile()
-  whitelist.bc = utils::read.csv(whitelist.file, header = T, stringsAsFactors = FALSE, row.names = 1)
+  whitelist.bc = utils::read.csv(whitelist.file, header = T, stringsAsFactors = FALSE)
   whitelist.bc = whitelist.bc$x
   n.bcs = length(whitelist.bc)
   message("There are ", n.bcs, " whitelist barcodes.")
