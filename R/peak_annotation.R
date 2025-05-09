@@ -220,7 +220,9 @@ base_seq <- function(genome,
   # chromLengths = GenomeInfoDb::seqlengths(genome)
   # chromLength <- chromLengths[chrom]
   if ("DNAStringSet" %in% class(genome)) {
-    chromLength <- width(genome[[chrom]])
+      idx <- which(names(genome) == chrom)
+      if (length(idx) == 0) stop(paste("Chromosome", chrom, "not found in genome"))
+      chromLength <- nchar(genome[[idx]])
   } else {
     chromLengths = GenomeInfoDb::seqlengths(genome)
     chromLength <- chromLengths[chrom]
