@@ -217,8 +217,15 @@ base_seq <- function(genome,
   seq_end_position = coord.meta[2]
 
   # check seq length
-  chromLengths = GenomeInfoDb::seqlengths(genome)
-  chromLength <- chromLengths[chrom]
+  # chromLengths = GenomeInfoDb::seqlengths(genome)
+  # chromLength <- chromLengths[chrom]
+  if ("DNAStringSet" %in% class(genome)) {
+    chromLength <- width(genome[[chrom]])
+  } else {
+    chromLengths = GenomeInfoDb::seqlengths(genome)
+    chromLength <- chromLengths[chrom]
+  }
+
 
   if (is.na(chromLength)){
     warning(paste0("No chromosome entry in genome for ", chrom))
