@@ -27,6 +27,7 @@ Imports:
     parallel,
     plyr,
     Rsamtools,
+    R.utils,
     S4Vectors,
     stats,
     tictoc,
