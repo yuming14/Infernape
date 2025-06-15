@@ -209,15 +209,6 @@ peak_counting <- function(bamfile,
                           max.region.width = 10000,
                           timeout.sec = 300) {
 
-  library(R.utils)
-  library(Matrix)
-  library(foreach)
-  library(doParallel)
-  library(GenomicAlignments)
-  library(IRanges)
-  library(GenomicRanges)
-  library(magrittr)
-
   whitelist.bc <- utils::read.csv(whitelist.file, header = TRUE, stringsAsFactors = FALSE)$x
   n.bcs <- length(whitelist.bc)
   message("Number of whitelist barcodes: ", n.bcs)
