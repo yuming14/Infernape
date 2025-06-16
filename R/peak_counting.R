@@ -200,18 +200,19 @@ peak_counting_old <- function(bamfile,
 }
 
 # Modified peak_counting() with timeout, region size check, and logging
+# Version 1: Enhanced foreach + Sys.time() + cat logging
 peak_counting <- function(bamfile,
                           whitelist.file,
                           peak.sites.file,
                           ncores = 1,
                           start.cid = NULL,
                           end.cid = NULL,
-                          max.region.width = 10000,
-                          timeout.sec = 300) {
+                          max.region.width = 100000,
+                          timeout.sec = 1800) {
 
   whitelist.bc <- utils::read.csv(whitelist.file, header = TRUE, stringsAsFactors = FALSE)$x
   n.bcs <- length(whitelist.bc)
-  message("Number of whitelist barcodes: ", n.bcs)
+  cat("Number of whitelist barcodes:", n.bcs, "\n")
 
   peak.sites <- utils::read.csv(peak.sites.file, header = TRUE, stringsAsFactors = FALSE)
   peak.sites$strand <- ifelse(peak.sites$strand == "+", 1, -1)
@@ -221,7 +222,7 @@ peak_counting <- function(bamfile,
     cids <- cids[start.cid:min(end.cid, length(cids))]
   }
 
-  message("Running peak_counting on ", length(cids), " peak clusters")
+  cat("Running peak_counting on", length(cids), "peak clusters\n")
 
   system.name <- Sys.info()['sysname']
   new_cl <- FALSE
@@ -236,43 +237,43 @@ peak_counting <- function(bamfile,
   `%dopar%` <- foreach::`%dopar%`
   mat.to.write <- foreach::foreach(cluster.id = cids, .combine = 'rbind', .packages = c("GenomicAlignments", "IRanges", "GenomicRanges", "Matrix", "magrittr")) %dopar% {
 
-    message(paste0("[", Sys.time(), "] Starting cluster: ", cluster.id))
-    res.mat <- NULL
-    tryCatch({
-      res.mat <- withTimeout({
-        peak.sites.sub <- peak.sites[peak.sites$cluster_ID == cluster.id, ]
-        if (nrow(peak.sites.sub) == 0) stop("No peaks in cluster.")
+    peak.sites.sub <- peak.sites[peak.sites$cluster_ID == cluster.id, ]
+    if (nrow(peak.sites.sub) == 0) return(NULL)
 
-        region.width <- max(peak.sites.sub$to) - min(peak.sites.sub$from)
-        if (region.width > max.region.width) {
-          message("Skipping cluster ", cluster.id, ": region too large (", region.width, " bp)")
-          return(matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs))
-        }
+    region.width <- max(peak.sites.sub$to) - min(peak.sites.sub$from)
+    region.chrom <- unique(peak.sites.sub$seq)
+    cat("[", Sys.time(), "] Cluster:", cluster.id, " Region:", region.chrom, ":", min(peak.sites.sub$from), "-", max(peak.sites.sub$to), "\n")
+    flush.console()
 
-        # original peak_counting logic goes here
-        # for simplicity, return dummy zero matrix with correct dims
-        mat <- matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs)
-        rownames(mat) <- as.character(peak.sites.sub$polyA_ID)
-        Matrix::Matrix(mat, sparse = TRUE)
-
-      }, timeout = timeout.sec, onTimeout = "silent")
-    }, error = function(e) {
-      message("Error in cluster ", cluster.id, ": ", e$message)
-    })
-
-    if (is.null(res.mat)) {
-      peak.sites.sub <- peak.sites[peak.sites$cluster_ID == cluster.id, ]
-      res.mat <- matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs)
-      rownames(res.mat) <- as.character(peak.sites.sub$polyA_ID)
-      res.mat <- Matrix::Matrix(res.mat, sparse = TRUE)
+    if (region.width > max.region.width) {
+      cat("Skipping cluster", cluster.id, ": region too large (", region.width, " bp)\n")
+      flush.console()
+      return(Matrix::Matrix(matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs), sparse = TRUE, dimnames = list(peak.sites.sub$polyA_ID, NULL)))
     }
 
-    message(paste0("[", Sys.time(), "] Finished cluster: ", cluster.id))
-    res.mat
+    start.time <- Sys.time()
+    # original peak_counting logic should be placed here
+    # for demonstration, simulate slow cluster:
+    Sys.sleep(runif(1, 0, 5))
+    elapsed <- as.numeric(Sys.time() - start.time, units = "secs")
+
+    if (elapsed > timeout.sec) {
+      cat("Timeout in cluster", cluster.id, ": took", elapsed, "seconds\n")
+      flush.console()
+      return(Matrix::Matrix(matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs), sparse = TRUE, dimnames = list(peak.sites.sub$polyA_ID, NULL)))
+    }
+
+    # Return dummy sparse matrix
+    mat <- matrix(0L, nrow = nrow(peak.sites.sub), ncol = n.bcs)
+    rownames(mat) <- as.character(peak.sites.sub$polyA_ID)
+    mat <- Matrix::Matrix(mat, sparse = TRUE)
+
+    cat("[", Sys.time(), "] Finished cluster:", cluster.id, "\n")
+    flush.console()
+    mat
   }
 
   if (new_cl) parallel::stopCluster(cluster)
   colnames(mat.to.write) <- whitelist.bc
   return(mat.to.write)
 }
-
